@@ -2,9 +2,15 @@
 package com.example.advhci
 //imports
 
+import android.Manifest
+import android.content.pm.PackageManager
+import com.example.advhci.speech.AnswerMatcher
+import com.example.advhci.speech.SpeechRecognizerManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import com.example.advhci.ui.theme.AdvHCITheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 
 
 //initialize screen and main entry point
@@ -31,6 +39,14 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun QuizScreen() {
+    //audio variables
+    val context = LocalContext.current
+    val speechManager = remember { SpeechRecognizerManager(context) }
+
+    val isListening by speechManager.isListening.collectAsState()
+    val spokenText by speechManager.spokenText.collectAsState()
+    val errorMessage by speechManager.errorMessage.collectAsState()
+
     //set up question number, the score, and the selected answer
     var questionIndex by remember { mutableIntStateOf(0) }
     var score by remember { mutableIntStateOf(0) }
@@ -43,6 +59,45 @@ fun QuizScreen() {
     //if the current question is greater than or equal to the number of questions in the game then end the quiz
     val quizFinished = questionIndex >= gameQuestions.size
 
+    // Audio Permission Handling
+    var hasAudioPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    // Process Voice Answer When Recognized
+    LaunchedEffect(spokenText) {
+        if (spokenText.isNotBlank() && selectedAnswer == -1 && !quizFinished) {
+            val currentQuestion = gameQuestions[questionIndex]
+            val matchedIndex = AnswerMatcher.resolveSpokenAnswer(spokenText, currentQuestion.answers)
+
+            if (matchedIndex != null) {
+                selectedAnswer = matchedIndex
+                if (matchedIndex == currentQuestion.correctAnswerIndex) {
+                    score++
+                }
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            speechManager.destroy()
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasAudioPermission = isGranted
+        if (isGranted) {
+            speechManager.startListening()
+        }
+    }
 
     //column setup so it's all vertical
     Column(
@@ -132,6 +187,40 @@ fun QuizScreen() {
                         .padding(vertical = 4.dp)
                 ) {
                     Text("${'A' + index}. $answer")
+                }
+            }
+
+            if (selectedAnswer == -1) {
+                Button(
+                    onClick = {
+                        if (hasAudioPermission) {
+                            if (isListening) speechManager.stopListening() else speechManager.startListening()
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isListening) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Text(if (isListening) "Listening... (Tap to Cancel)" else "🎙️ Speak Answer")
+                }
+
+                if (spokenText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Heard: \"$spokenText\"",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                errorMessage?.let { error ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
 
