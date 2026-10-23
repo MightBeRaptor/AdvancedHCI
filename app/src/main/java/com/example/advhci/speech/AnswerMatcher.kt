@@ -16,19 +16,19 @@ object AnswerMatcher {
 
         // 1. Broad phonetic dictionary for single letter choices
         val phoneticMap = mapOf(
-            // --- Option A (Index 0) ---
+            // Option A (Index 0)
             "a" to 0, "ay" to 0, "eh" to 0, "hey" to 0, "eight" to 0, "ate" to 0,
             "option a" to 0, "choice a" to 0, "letter a" to 0, "answer a" to 0,
 
-            // --- Option B (Index 1) ---
+            // Option B (Index 1)
             "b" to 1, "bee" to 1, "be" to 1, "beat" to 1, "me" to 1, "the" to 1,
             "option b" to 1, "choice b" to 1, "letter b" to 1, "answer b" to 1,
 
-            // --- Option C (Index 2) ---
+            // Option C (Index 2)
             "c" to 2, "see" to 2, "sea" to 2, "si" to 2, "scene" to 2,
             "option c" to 2, "choice c" to 2, "letter c" to 2, "answer c" to 2,
 
-            // --- Option D (Index 3) ---
+            // Option D (Index 3)
             "d" to 3, "dee" to 3, "de" to 3, "thee" to 3, "tea" to 3,
             "option d" to 3, "choice d" to 3, "letter d" to 3, "answer d" to 3
         )
